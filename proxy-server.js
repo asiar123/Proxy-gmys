@@ -43,7 +43,7 @@ app.post('/login', async (req, res) => {
 });
 
 // Maneja las solicitudes al endpoint /api/vehiculos_user
-app.use('/api/vehiculos_user', async (req, res) => {
+app.use('/vehiculos_user', async (req, res) => {
   try {
     const { usuario_id } = req.query; // Obtiene el ID del usuario desde la query string
     console.log('Datos del usuario recibidos en el proxy:', usuario_id);
