@@ -42,13 +42,13 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Maneja las solicitudes al endpoint /api/vehiculos_user
+// Maneja las solicitudes al endpoint /vehiculos_user
 app.use('/vehiculos_user', async (req, res) => {
   try {
     const { usuario_id } = req.query; // Obtiene el ID del usuario desde la query string
     console.log('Datos del usuario recibidos en el proxy:', usuario_id);
 
-    const response = await axios.get(`https://ws.gmys.com.co/api/vehiculos_user?usuario_id=${usuario_id}`);
+    const response = await axios.get(`https://ws.gmys.com.co/vehiculos_user?usuario_id=${usuario_id}`);
 
     console.log('Respuesta del backend:', response.data);
 
