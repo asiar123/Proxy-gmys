@@ -42,6 +42,24 @@ app.post('/login', async (req, res) => {
   }
 });
 
+// Maneja las solicitudes al endpoint /api/vehiculos_user
+app.use('/api/vehiculos_user', async (req, res) => {
+  try {
+    const { usuario_id } = req.query; // Obtiene el ID del usuario desde la query string
+    console.log('Datos del usuario recibidos en el proxy:', usuario_id);
+
+    const response = await axios.get(`https://ws.gmys.com.co/api/vehiculos_user?usuario_id=${usuario_id}`);
+
+    console.log('Respuesta del backend:', response.data);
+
+    // Envía la respuesta del backend al frontend
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error al conectar con el backend:', error);
+    res.status(500).json({ error: 'Error al conectarse con el backend' });
+  }
+});
+
 // Configuración del puerto
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
