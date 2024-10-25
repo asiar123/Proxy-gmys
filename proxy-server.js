@@ -46,7 +46,7 @@ app.use('/vehiculos_user', async (req, res) => {
     const { usuario_id } = req.query;
     console.log('Datos del usuario recibidos en el proxy:', usuario_id);
 
-    const response = await axios.get('https://ws.gmys.com.co/vehiculos_user?usuario_id=${usuario_id}, { httpsAgent: agent }');
+    const response = await axios.get(`https://ws.gmys.com.co/vehiculos_user?usuario_id=${usuario_id}`, { httpsAgent: agent });
 
     console.log('Respuesta del backend:', response.data);
     res.json(response.data);
@@ -62,7 +62,7 @@ app.use('/vehiculo_recorrido', async (req, res) => {
     const { vehi_id, fecha_i, fecha_f } = req.query;
     console.log('Datos del recorrido recibidos en el proxy:', vehi_id, fecha_i, fecha_f);
 
-    const response = await axios.get('https://ws.gmys.com.co/vehiculo_recorrido?vehi_id=${vehi_id}&fecha_i=${fecha_i}&fecha_f=${fecha_f}, { httpsAgent: agent }');
+    const response = await axios.get(`https://ws.gmys.com.co/vehiculo_recorrido?vehi_id=${vehi_id}&fecha_i=${fecha_i}&fecha_f=${fecha_f}`, { httpsAgent: agent });
 
     console.log('Respuesta del backend:', response.data);
     res.json(response.data);
@@ -75,5 +75,5 @@ app.use('/vehiculo_recorrido', async (req, res) => {
 // Configuración del puerto
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log('Servidor proxy escuchando en el puerto ${port}');
+  console.log(`Servidor proxy escuchando en el puerto ${port}`);
 });
