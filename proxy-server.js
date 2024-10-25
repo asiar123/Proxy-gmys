@@ -9,7 +9,8 @@ const app = express();
 // Limita CORS a solo un origen confiable (frontend de producción)
 const corsOptions = {
   origin: 'https://mi-frontend.com', // Reemplaza con tu dominio del frontend
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  credentials: true, // Si planeas usar cookies o autenticación basada en sesiones
 };
 app.use(cors(corsOptions)); // Implementa el CORS limitado
 
