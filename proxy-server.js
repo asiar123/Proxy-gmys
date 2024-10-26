@@ -88,6 +88,22 @@ app.use('/eventos_placa', async (req, res) => {
   }
 });
 
+// Nueva ruta para manejar las solicitudes de geocercas por placa
+app.use('/geocerca_placa', async (req, res) => {
+  try {
+    const { vehi_id } = req.query;
+    console.log('Datos de geocerca recibidos en el proxy:', vehi_id);
+
+    const response = await axios.get(`https://ws.gmys.com.co/geocerca_placa?vehi_id=${vehi_id}`, { httpsAgent: agent });
+
+    console.log('Respuesta del backend de geocercas:', response.data);
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error al conectar con el backend:', error);
+    res.status(500).json({ error: 'Error al conectarse con el backend' });
+  }
+});
+
 // Configuración del puerto
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
