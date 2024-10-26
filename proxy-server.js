@@ -104,6 +104,22 @@ app.use('/geocerca_placa', async (req, res) => {
   }
 });
 
+// Ruta para manejar las solicitudes de consumo de vehículo
+app.use('/consumo_vehiculo', async (req, res) => {
+  try {
+    const { vehi_id, fecha_i, fecha_f } = req.query;
+    console.log('Datos de consumo recibidos en el proxy:', vehi_id, fecha_i, fecha_f);
+
+    const response = await axios.get(`https://ws.gmys.com.co/consumo_placa?vehi_id=${vehi_id}&fecha_i=${fecha_i}&fecha_f=${fecha_f}`, { httpsAgent: agent });
+
+    console.log('Respuesta del backend de consumo:', response.data);
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error al conectar con el backend:', error);
+    res.status(500).json({ error: 'Error al conectarse con el backend' });
+  }
+});
+
 // Configuración del puerto
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
