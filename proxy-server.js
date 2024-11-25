@@ -121,28 +121,30 @@ app.use('/consumo_vehiculo', async (req, res) => {
 });
 
 // Ruta para manejar las solicitudes de geocodificación inversa de OpenStreetMap
-app.get('/reverse-geocode', async (req, res) => {
+const NodeCache = require("node-cache");
+const addressCache = new NodeCache({ stdTTL: 3600 }); // Cache TTL of 1 hour
+
+app.get("/reverse-geocode", async (req, res) => {
+  const { lat, lon } = req.query;
+  const cacheKey = `${lat},${lon}`;
+
+  // Check cache first
+  if (addressCache.has(cacheKey)) {
+    return res.json(addressCache.get(cacheKey));
+  }
+
   try {
-    const { lat, lon } = req.query;
-    console.log('Received coordinates:', { lat, lon });
-
-    if (!lat || !lon) {
-      console.error('Missing latitude or longitude');
-      return res.status(400).json({ error: 'Missing latitude or longitude' });
-    }
-
     const response = await axios.get(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
-      { httpsAgent: agent }
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`
     );
-
-    console.log('OpenStreetMap response:', response.data);
+    addressCache.set(cacheKey, response.data); // Save response in cache
     res.json(response.data);
   } catch (error) {
-    console.error('Error connecting to OpenStreetMap:', error.message || error);
-    res.status(500).json({ error: 'Error connecting to the geocoding service' });
+    console.error("Error connecting to OpenStreetMap:", error.message);
+    res.status(500).json({ error: "Error connecting to geocoding service" });
   }
 });
+
 
 // Configuración del puerto
 const port = process.env.PORT || 3000;
