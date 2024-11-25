@@ -120,6 +120,26 @@ app.use('/consumo_vehiculo', async (req, res) => {
   }
 });
 
+// Ruta para manejar las solicitudes de geocodificación inversa de OpenStreetMap
+app.get('/reverse-geocode', async (req, res) => {
+  try {
+    const { lat, lon } = req.query;
+    console.log('Coordenadas recibidas en el proxy para geocodificación:', lat, lon);
+
+    const response = await axios.get(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
+      { httpsAgent: agent } // Opcional si necesitas usar TLSv1.2 o ignorar certificados
+    );
+
+    console.log('Respuesta del backend de OpenStreetMap:', response.data);
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error al conectar con OpenStreetMap:', error);
+    res.status(500).json({ error: 'Error al conectarse con el servicio de geocodificación' });
+  }
+});
+
+
 // Configuración del puerto
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
