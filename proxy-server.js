@@ -122,7 +122,6 @@ app.use('/consumo_vehiculo', async (req, res) => {
 
 // Ruta para manejar las solicitudes de geocodificación inversa de OpenStreetMap
 const NodeCache = require("node-cache");
-const axios = require("axios");
 const rateLimit = require("express-rate-limit");
 
 const addressCache = new NodeCache({ stdTTL: 3600 }); // Cache TTL of 1 hour
