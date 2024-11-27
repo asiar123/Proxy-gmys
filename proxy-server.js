@@ -12,13 +12,11 @@ const app = express();
 // Caching for reverse-geocode requests
 const addressCache = new NodeCache({ stdTTL: 3600 }); // Cache TTL: 1 hour
 
-// Configure rate limiting
+// Rate limiter
 const limiter = rateLimit({
-  windowMs: 1000, // 1 second
-  max: 5, // Allow up to 5 requests per second
-  message: { error: "Too many requests, please try again later." },
-  standardHeaders: true, // Send rate limit info in response headers
-  legacyHeaders: false, // Disable `X-RateLimit-*` headers
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // Limit to 10 requests per minute
+  message: { error: "Too many requests, please slow down." }
 });
 
 // HTTPS agent for secure connections
@@ -31,6 +29,7 @@ const agent = new https.Agent({
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.set('trust proxy', true); // Enable trust for proxies
 
 // Helper for API Base URLs (stored in .env file)
 const API_BASE_URL = process.env.API_BASE_URL || "https://ws.gmys.com.co";
@@ -41,6 +40,7 @@ app.use((err, req, res, next) => {
   console.error("Unhandled error:", err.stack);
   res.status(500).json({ error: "Internal Server Error" });
 });
+
 
 // ===================================
 // ROUTES
@@ -154,12 +154,12 @@ app.get("/consumo_vehiculo", async (req, res, next) => {
   }
 });
 
-// Reverse Geocoding with OpenStreetMap
-app.get("/reverse-geocode", limiter, async (req, res, next) => {
+// Geocoding route
+app.get('/reverse-geocode', limiter, async (req, res) => {
   const { lat, lon } = req.query;
   const cacheKey = `${lat},${lon}`;
 
-  if (!lat || !lon || isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+  if (!lat || !lon || isNaN(lat) || isNaN(lon)) {
     return res.status(400).json({ error: "Invalid latitude or longitude" });
   }
 
@@ -168,21 +168,14 @@ app.get("/reverse-geocode", limiter, async (req, res, next) => {
   }
 
   try {
-    const response = await axios.get(
-      `${NOMINATIM_API}/reverse?format=json&lat=${lat}&lon=${lon}`
-    );
-
-    const data = {
-      road: response.data.address?.road || "Unknown Road",
-      city: response.data.address?.city || response.data.address?.town || "Unknown City",
-      state: response.data.address?.state || "Unknown State",
-      country: response.data.address?.country || "Unknown Country",
-    };
-
-    addressCache.set(cacheKey, data); // Save response in cache
-    res.json(data);
+    const response = await axios.get(`https://nominatim.openstreetmap.org/reverse`, {
+      params: { lat, lon, format: 'json' }
+    });
+    addressCache.set(cacheKey, response.data); // Cache response
+    res.json(response.data);
   } catch (error) {
-    next(error);
+    console.error("Error connecting to OpenStreetMap:", error.message);
+    res.status(500).json({ error: "Error connecting to geocoding service" });
   }
 });
 
