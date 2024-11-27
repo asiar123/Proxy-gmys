@@ -12,12 +12,14 @@ const app = express();
 // Caching for reverse-geocode requests
 const addressCache = new NodeCache({ stdTTL: 3600 }); // Cache TTL: 1 hour
 
-// Rate limiter
 const limiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 10, // Limit to 10 requests per minute
+  max: 100, // Allow up to 100 requests per minute per IP
   message: { error: "Too many requests, please slow down." }
 });
+
+app.use(limiter); // Apply the limiter globally
+
 
 // HTTPS agent for secure connections
 const agent = new https.Agent({
@@ -155,29 +157,31 @@ app.get("/consumo_vehiculo", async (req, res, next) => {
 });
 
 // Geocoding route
-app.get('/reverse-geocode', limiter, async (req, res) => {
+app.get("/reverse-geocode", limiter, async (req, res) => {
   const { lat, lon } = req.query;
   const cacheKey = `${lat},${lon}`;
 
-  if (!lat || !lon || isNaN(lat) || isNaN(lon)) {
-    return res.status(400).json({ error: "Invalid latitude or longitude" });
-  }
-
+  // Return cached result if available
   if (addressCache.has(cacheKey)) {
+    console.log("Cache hit for:", cacheKey);
     return res.json(addressCache.get(cacheKey));
   }
 
   try {
-    const response = await axios.get(`https://nominatim.openstreetmap.org/reverse`, {
-      params: { lat, lon, format: 'json' }
+    const response = await axios.get("https://nominatim.openstreetmap.org/reverse", {
+      params: { format: "json", lat, lon }
     });
-    addressCache.set(cacheKey, response.data); // Cache response
+
+    // Cache the result
+    addressCache.set(cacheKey, response.data);
+    console.log("Cache set for:", cacheKey);
     res.json(response.data);
   } catch (error) {
-    console.error("Error connecting to OpenStreetMap:", error.message);
+    console.error("Error connecting to geocoding service:", error.message);
     res.status(500).json({ error: "Error connecting to geocoding service" });
   }
 });
+
 
 // ===================================
 // SERVER START
