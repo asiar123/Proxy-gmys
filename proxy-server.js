@@ -1,142 +1,165 @@
-const express = require('express');
-const axios = require('axios');
-const cors = require('cors');
-const qs = require('qs');
-const https = require('https');
+const express = require("express");
+const axios = require("axios");
+const cors = require("cors");
+const qs = require("qs");
+const https = require("https");
+const NodeCache = require("node-cache");
+const rateLimit = require("express-rate-limit");
+require("dotenv").config();
 
 const app = express();
 
-// Habilita CORS para permitir solicitudes desde cualquier origen
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // Para procesar datos urlencoded
+// Caching for reverse-geocode requests
+const addressCache = new NodeCache({ stdTTL: 3600 }); // Cache TTL: 1 hour
 
-// Crear un agente HTTPS que use TLS v1.2 y que ignore la verificación de certificados
-const agent = new https.Agent({
-  rejectUnauthorized: false,
-  secureProtocol: 'TLSv1_2_method',
-});
-
-// Ruta para manejar el login
-app.post('/login', async (req, res) => {
-  try {
-    const { usuario, passwd } = req.body;
-    console.log('Datos enviados al backend:', usuario, passwd);
-
-    // Envía la solicitud al web service utilizando el agente con TLS 1.2
-    const response = await axios.post('https://ws.gmys.com.co/login', qs.stringify({
-      usuario: usuario,
-      passwd: passwd
-    }), {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      httpsAgent: agent
-    });
-
-    console.log('Respuesta del backend:', response.data);
-    res.json(response.data);
-  } catch (error) {
-    console.error('Error en la solicitud:', error);
-    res.status(500).json({ error: 'Error al conectarse con el backend' });
-  }
-});
-
-// Ruta para manejar las solicitudes de vehículos del usuario
-app.use('/vehiculos_user', async (req, res) => {
-  try {
-    const { usuario_id } = req.query;
-    console.log('Datos del usuario recibidos en el proxy:', usuario_id);
-
-    const response = await axios.get(`https://ws.gmys.com.co/vehiculos_user?usuario_id=${usuario_id}`, { httpsAgent: agent });
-
-    console.log('Respuesta del backend:', response.data);
-    res.json(response.data);
-  } catch (error) {
-    console.error('Error al conectar con el backend:', error);
-    res.status(500).json({ error: 'Error al conectarse con el backend' });
-  }
-});
-
-// Ruta para manejar las solicitudes de recorrido del vehículo
-app.use('/vehiculo_recorrido', async (req, res) => {
-  try {
-    const { vehi_id, fecha_i, fecha_f } = req.query;
-    console.log('Datos del recorrido recibidos en el proxy:', vehi_id, fecha_i, fecha_f);
-
-    const response = await axios.get(`https://ws.gmys.com.co/vehiculo_recorrido?vehi_id=${vehi_id}&fecha_i=${fecha_i}&fecha_f=${fecha_f}`, { httpsAgent: agent });
-
-    console.log('Respuesta del backend:', response.data);
-    res.json(response.data);
-  } catch (error) {
-    console.error('Error al conectar con el backend:', error);
-    res.status(500).json({ error: 'Error al conectarse con el backend' });
-  }
-});
-
-// Nueva ruta para manejar solicitudes de eventos por placa
-app.use('/eventos_placa', async (req, res) => {
-  try {
-    const { vehi_id, fecha_i, fecha_f } = req.query;
-    console.log('Datos de eventos recibidos en el proxy:', vehi_id, fecha_i, fecha_f);
-
-    const response = await axios.get(`https://ws.gmys.com.co/eventos_placa?vehi_id=${vehi_id}&fecha_i=${fecha_i}&fecha_f=${fecha_f}`, { httpsAgent: agent });
-
-    console.log('Respuesta del backend:', response.data);
-    res.json(response.data);
-  } catch (error) {
-    console.error('Error al conectar con el backend:', error);
-    res.status(500).json({ error: 'Error al conectarse con el backend' });
-  }
-});
-
-// Nueva ruta para manejar las solicitudes de geocercas por placa
-app.use('/geocerca_placa', async (req, res) => {
-  try {
-    const { vehi_id } = req.query;
-    console.log('Datos de geocerca recibidos en el proxy:', vehi_id);
-
-    const response = await axios.get(`https://ws.gmys.com.co/geocerca_placa?vehi_id=${vehi_id}`, { httpsAgent: agent });
-
-    console.log('Respuesta del backend de geocercas:', response.data);
-    res.json(response.data);
-  } catch (error) {
-    console.error('Error al conectar con el backend:', error);
-    res.status(500).json({ error: 'Error al conectarse con el backend' });
-  }
-});
-
-// Ruta para manejar las solicitudes de consumo de vehículo
-app.use('/consumo_vehiculo', async (req, res) => {
-  try {
-    const { vehi_id, fecha_i, fecha_f } = req.query;
-    console.log('Datos de consumo recibidos en el proxy:', vehi_id, fecha_i, fecha_f);
-
-    const response = await axios.get(`https://ws.gmys.com.co/consumo_placa?vehi_id=${vehi_id}&fecha_i=${fecha_i}&fecha_f=${fecha_f}`, { httpsAgent: agent });
-
-    console.log('Respuesta del backend de consumo:', response.data);
-    res.json(response.data);
-  } catch (error) {
-    console.error('Error al conectar con el backend:', error);
-    res.status(500).json({ error: 'Error al conectarse con el backend' });
-  }
-});
-
-// Ruta para manejar las solicitudes de geocodificación inversa de OpenStreetMap
-const NodeCache = require("node-cache");
-const rateLimit = require("express-rate-limit");
-
-const addressCache = new NodeCache({ stdTTL: 3600 }); // Cache TTL of 1 hour
-
+// Configure rate limiting
 const limiter = rateLimit({
   windowMs: 1000, // 1 second
-  max: 1, // Limit to 1 request per second
-  message: { error: "Too many requests, please try again later." }
+  max: 5, // Allow up to 5 requests per second
+  message: { error: "Too many requests, please try again later." },
+  standardHeaders: true, // Send rate limit info in response headers
+  legacyHeaders: false, // Disable `X-RateLimit-*` headers
 });
 
-app.get("/reverse-geocode", limiter, async (req, res) => {
+// HTTPS agent for secure connections
+const agent = new https.Agent({
+  rejectUnauthorized: false,
+  secureProtocol: "TLSv1_2_method",
+});
+
+// Enable CORS and JSON parsing
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Helper for API Base URLs (stored in .env file)
+const API_BASE_URL = process.env.API_BASE_URL || "https://ws.gmys.com.co";
+const NOMINATIM_API = process.env.NOMINATIM_API || "https://nominatim.openstreetmap.org";
+
+// Centralized error handler
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err.stack);
+  res.status(500).json({ error: "Internal Server Error" });
+});
+
+// ===================================
+// ROUTES
+// ===================================
+
+// Login Route
+app.post("/login", async (req, res, next) => {
+  try {
+    const { usuario, passwd } = req.body;
+    console.log("Datos enviados al backend:", usuario, passwd);
+
+    const response = await axios.post(
+      `${API_BASE_URL}/login`,
+      qs.stringify({ usuario, passwd }),
+      {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        httpsAgent: agent,
+      }
+    );
+
+    console.log("Respuesta del backend:", response.data);
+    res.json(response.data);
+  } catch (error) {
+    console.error("Error en la solicitud:", error.message);
+    res.status(500).json({ error: "Error al conectarse con el backend" });
+  }
+});
+
+// Vehículos del Usuario
+app.get("/vehiculos_user", async (req, res, next) => {
+  try {
+    const { usuario_id } = req.query;
+    console.log("Datos del usuario recibidos:", usuario_id);
+
+    const response = await axios.get(
+      `${API_BASE_URL}/vehiculos_user?usuario_id=${usuario_id}`,
+      { httpsAgent: agent }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Vehículo Recorrido
+app.get("/vehiculo_recorrido", async (req, res, next) => {
+  try {
+    const { vehi_id, fecha_i, fecha_f } = req.query;
+    console.log("Datos del recorrido recibidos:", vehi_id, fecha_i, fecha_f);
+
+    const response = await axios.get(
+      `${API_BASE_URL}/vehiculo_recorrido?vehi_id=${vehi_id}&fecha_i=${fecha_i}&fecha_f=${fecha_f}`,
+      { httpsAgent: agent }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Eventos por Placa
+app.get("/eventos_placa", async (req, res, next) => {
+  try {
+    const { vehi_id, fecha_i, fecha_f } = req.query;
+    console.log("Datos de eventos recibidos:", vehi_id, fecha_i, fecha_f);
+
+    const response = await axios.get(
+      `${API_BASE_URL}/eventos_placa?vehi_id=${vehi_id}&fecha_i=${fecha_i}&fecha_f=${fecha_f}`,
+      { httpsAgent: agent }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Geocercas por Placa
+app.get("/geocerca_placa", async (req, res, next) => {
+  try {
+    const { vehi_id } = req.query;
+    console.log("Datos de geocerca recibidos:", vehi_id);
+
+    const response = await axios.get(
+      `${API_BASE_URL}/geocerca_placa?vehi_id=${vehi_id}`,
+      { httpsAgent: agent }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Consumo de Vehículo
+app.get("/consumo_vehiculo", async (req, res, next) => {
+  try {
+    const { vehi_id, fecha_i, fecha_f } = req.query;
+    console.log("Datos de consumo recibidos:", vehi_id, fecha_i, fecha_f);
+
+    const response = await axios.get(
+      `${API_BASE_URL}/consumo_placa?vehi_id=${vehi_id}&fecha_i=${fecha_i}&fecha_f=${fecha_f}`,
+      { httpsAgent: agent }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Reverse Geocoding with OpenStreetMap
+app.get("/reverse-geocode", limiter, async (req, res, next) => {
   const { lat, lon } = req.query;
   const cacheKey = `${lat},${lon}`;
 
-  if (!lat || !lon || isNaN(lat) || isNaN(lon)) {
+  if (!lat || !lon || isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
     return res.status(400).json({ error: "Invalid latitude or longitude" });
   }
 
@@ -146,19 +169,26 @@ app.get("/reverse-geocode", limiter, async (req, res) => {
 
   try {
     const response = await axios.get(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`
+      `${NOMINATIM_API}/reverse?format=json&lat=${lat}&lon=${lon}`
     );
-    addressCache.set(cacheKey, response.data); // Save response in cache
-    res.json(response.data);
+
+    const data = {
+      road: response.data.address?.road || "Unknown Road",
+      city: response.data.address?.city || response.data.address?.town || "Unknown City",
+      state: response.data.address?.state || "Unknown State",
+      country: response.data.address?.country || "Unknown Country",
+    };
+
+    addressCache.set(cacheKey, data); // Save response in cache
+    res.json(data);
   } catch (error) {
-    console.error("Error connecting to OpenStreetMap:", error.response?.data || error.message);
-    res.status(500).json({ error: "Error connecting to geocoding service" });
+    next(error);
   }
 });
 
-
-
-// Configuración del puerto
+// ===================================
+// SERVER START
+// ===================================
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Servidor proxy escuchando en el puerto ${port}`);
