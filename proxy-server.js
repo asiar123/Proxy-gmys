@@ -122,13 +122,25 @@ app.use('/consumo_vehiculo', async (req, res) => {
 
 // Ruta para manejar las solicitudes de geocodificación inversa de OpenStreetMap
 const NodeCache = require("node-cache");
+const axios = require("axios");
+const rateLimit = require("express-rate-limit");
+
 const addressCache = new NodeCache({ stdTTL: 3600 }); // Cache TTL of 1 hour
 
-app.get("/reverse-geocode", async (req, res) => {
+const limiter = rateLimit({
+  windowMs: 1000, // 1 second
+  max: 1, // Limit to 1 request per second
+  message: { error: "Too many requests, please try again later." }
+});
+
+app.get("/reverse-geocode", limiter, async (req, res) => {
   const { lat, lon } = req.query;
   const cacheKey = `${lat},${lon}`;
 
-  // Check cache first
+  if (!lat || !lon || isNaN(lat) || isNaN(lon)) {
+    return res.status(400).json({ error: "Invalid latitude or longitude" });
+  }
+
   if (addressCache.has(cacheKey)) {
     return res.json(addressCache.get(cacheKey));
   }
@@ -140,10 +152,11 @@ app.get("/reverse-geocode", async (req, res) => {
     addressCache.set(cacheKey, response.data); // Save response in cache
     res.json(response.data);
   } catch (error) {
-    console.error("Error connecting to OpenStreetMap:", error.message);
+    console.error("Error connecting to OpenStreetMap:", error.response?.data || error.message);
     res.status(500).json({ error: "Error connecting to geocoding service" });
   }
 });
+
 
 
 // Configuración del puerto
