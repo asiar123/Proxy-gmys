@@ -10,13 +10,15 @@ require("dotenv").config();
 const app = express();
 
 // Caching for reverse-geocode requests
-const addressCache = new NodeCache({ stdTTL: 3600 }); // Cache TTL: 1 hour
+const addressCache = new NodeCache({ stdTTL: 86400 }); // TTL: 24 horas
 
 const limiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 100, // Allow up to 100 requests per minute per IP
-  message: { error: "Too many requests, please slow down." }
+  windowMs: 60 * 1000, // 1 minuto
+  max: 100, // 100 solicitudes por minuto por IP
+  message: { error: "Too many requests, please slow down." },
+  keyGenerator: (req) => req.ip, // Genera claves basadas en la IP del cliente
 });
+
 
 app.use(limiter); // Apply the limiter globally
 
@@ -31,7 +33,7 @@ const agent = new https.Agent({
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.set('trust proxy', true); // Enable trust for proxies
+app.set('trust proxy', 1); // Enable trust for proxies
 
 // Helper for API Base URLs (stored in .env file)
 const API_BASE_URL = process.env.API_BASE_URL || "https://ws.gmys.com.co";
