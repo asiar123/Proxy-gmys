@@ -158,6 +158,7 @@ app.get("/consumo_vehiculo", async (req, res, next) => {
   }
 });
 
+// Geocoding route
 app.get("/reverse-geocode", limiter, async (req, res) => {
   const { lat, lon } = req.query;
 
@@ -180,6 +181,7 @@ app.get("/reverse-geocode", limiter, async (req, res) => {
     const response = await axios.get("https://nominatim.openstreetmap.org/reverse", {
       params: { format: "json", lat, lon },
       timeout: 5000,
+      httpsAgent: agent, // Usar el agente HTTPS para solicitudes seguras
     });
 
     console.log("Respuesta de OpenStreetMap recibida:", response.data);
@@ -187,10 +189,43 @@ app.get("/reverse-geocode", limiter, async (req, res) => {
     res.json(response.data);
   } catch (error) {
     console.error("Error al conectar con el servicio de geocodificación:");
-    console.error("Detalles del error:", error.response?.data || error.message);
+    if (error.response) {
+      console.error("Código de estado:", error.response.status);
+      console.error("Datos de respuesta:", error.response.data);
+    } else if (error.request) {
+      console.error("No se recibió respuesta del servidor:");
+      console.error("Detalles de la solicitud:", error.request);
+    } else {
+      console.error("Error al configurar la solicitud:", error.message);
+    }
     res.status(500).json({ error: "Error connecting to geocoding service" });
   }
 });
+
+// Prueba de conectividad a OpenStreetMap al iniciar
+(async () => {
+  try {
+    console.log("Realizando prueba de conexión a OpenStreetMap...");
+    const response = await axios.get("https://nominatim.openstreetmap.org/reverse", {
+      params: { format: "json", lat: 4.79959, lon: -75.744102 },
+      timeout: 5000, // Tiempo límite de espera
+      httpsAgent: agent, // Usar el agente HTTPS
+    });
+    console.log("Conexión exitosa. Respuesta de OpenStreetMap:", response.data);
+  } catch (error) {
+    console.error("Error al intentar conectar con OpenStreetMap:");
+    if (error.response) {
+      console.error("Código de estado:", error.response.status);
+      console.error("Datos de respuesta:", error.response.data);
+    } else if (error.request) {
+      console.error("No se recibió respuesta del servidor:");
+      console.error("Detalles de la solicitud:", error.request);
+    } else {
+      console.error("Error al configurar la solicitud:", error.message);
+    }
+  }
+})();
+
 
 
 
