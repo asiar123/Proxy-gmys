@@ -198,6 +198,27 @@ app.get("/reverse-geocode", limiter, async (req, res) => {
 // SERVER START
 // ===================================
 const port = process.env.PORT || 3000;
+const axios = require("axios"); // Asegúrate de tener axios importado
+
+// Prueba de conectividad a OpenStreetMap
+(async () => {
+  try {
+    console.log("Realizando prueba de conectividad a OpenStreetMap...");
+    const response = await axios.get("https://nominatim.openstreetmap.org/reverse", {
+      params: {
+        format: "json",
+        lat: 4.79959,
+        lon: -75.744102,
+      },
+      timeout: 5000, // Tiempo límite de espera
+    });
+    console.log("Prueba exitosa. Respuesta de OpenStreetMap:", response.data);
+  } catch (error) {
+    console.error("Error al intentar conectar con OpenStreetMap:");
+    console.error("Detalles del error:", error.response?.data || error.message);
+  }
+})();
+
 app.listen(port, () => {
   console.log(`Servidor proxy escuchando en el puerto ${port}`);
 });
