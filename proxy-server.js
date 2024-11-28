@@ -198,7 +198,6 @@ app.get("/reverse-geocode", limiter, async (req, res) => {
 // SERVER START
 // ===================================
 const port = process.env.PORT || 3000;
-const axios = require("axios"); // Asegúrate de tener axios importado
 
 // Prueba de conectividad a OpenStreetMap
 (async () => {
