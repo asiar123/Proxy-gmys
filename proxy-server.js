@@ -161,28 +161,41 @@ app.get("/consumo_vehiculo", async (req, res, next) => {
 // Geocoding route
 app.get("/reverse-geocode", limiter, async (req, res) => {
   const { lat, lon } = req.query;
+
+  // Validar parámetros
+  if (!lat || !lon) {
+    return res.status(400).json({ error: "Missing latitude or longitude" });
+  }
+
+  if (isNaN(lat) || isNaN(lon)) {
+    return res.status(400).json({ error: "Invalid latitude or longitude" });
+  }
+
   const cacheKey = `${lat},${lon}`;
 
-  // Return cached result if available
+  // Verificar caché
   if (addressCache.has(cacheKey)) {
     console.log("Cache hit for:", cacheKey);
     return res.json(addressCache.get(cacheKey));
   }
 
   try {
+    console.log(`Requesting geocoding for coordinates: lat=${lat}, lon=${lon}`);
     const response = await axios.get("https://nominatim.openstreetmap.org/reverse", {
-      params: { format: "json", lat, lon }
+      params: { format: "json", lat, lon },
+      timeout: 5000,
     });
 
-    // Cache the result
     addressCache.set(cacheKey, response.data);
-    console.log("Cache set for:", cacheKey);
+    console.log("Cache set for:", cacheKey, "Data:", response.data);
     res.json(response.data);
   } catch (error) {
-    console.error("Error connecting to geocoding service:", error.message);
+    console.error("Error response from geocoding service:", error.response?.data || "No response data");
+    console.error("Error details:", error.message);
     res.status(500).json({ error: "Error connecting to geocoding service" });
   }
 });
+
 
 
 // ===================================
