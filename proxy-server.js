@@ -10,7 +10,10 @@ require("dotenv").config();
 const app = express();
 
 // Caching for reverse-geocode requests
-const addressCache = new NodeCache({ stdTTL: 86400 }); // TTL: 24 horas
+const addressCache = new NodeCache({ stdTTL: 86400 * 7 }); // Caché válido por 7 días
+
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 
 const limiter = rateLimit({
   windowMs: 60 * 1000, // 1 minuto
@@ -101,11 +104,22 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
       { httpsAgent: agent }
     );
 
-    res.json(response.data);
+    // Filter redundant reports
+    const rawData = response.data; // Assuming response.data is an array of reports
+    const filteredData = rawData.filter((report, index, arr) => {
+      if (index === 0) return true; // Always keep the first report
+      const prevReport = arr[index - 1];
+
+      // Remove if speed = 0 and position is the same as the previous report
+      return !(report.speed === 0 && report.position === prevReport.position);
+    });
+
+    res.json(filteredData);
   } catch (error) {
     next(error);
   }
 });
+
 
 // Eventos por Placa
 app.get("/eventos_placa", async (req, res, next) => {
@@ -162,7 +176,6 @@ app.get("/consumo_vehiculo", async (req, res, next) => {
 app.get("/reverse-geocode", limiter, async (req, res) => {
   const { lat, lon } = req.query;
 
-  // Validar parámetros
   if (!lat || !lon) {
     console.error("Faltan parámetros: lat y lon");
     return res.status(400).json({ error: "Missing latitude or longitude" });
@@ -170,7 +183,6 @@ app.get("/reverse-geocode", limiter, async (req, res) => {
 
   const cacheKey = `${lat},${lon}`;
 
-  // Verificar caché
   if (addressCache.has(cacheKey)) {
     console.log("Cache hit for:", cacheKey);
     return res.json(addressCache.get(cacheKey));
@@ -178,13 +190,13 @@ app.get("/reverse-geocode", limiter, async (req, res) => {
 
   try {
     console.log(`Solicitando geocodificación para lat=${lat}, lon=${lon}`);
+    await delay(500); // Add a delay of 500ms to prevent hitting rate limits
     const response = await axios.get("https://nominatim.openstreetmap.org/reverse", {
       params: { format: "json", lat, lon },
       timeout: 5000,
-      httpsAgent: agent, // Usar el agente HTTPS para solicitudes seguras
+      httpsAgent: agent,
     });
 
-    console.log("Respuesta de OpenStreetMap recibida:", response.data);
     addressCache.set(cacheKey, response.data);
     res.json(response.data);
   } catch (error) {
@@ -201,6 +213,7 @@ app.get("/reverse-geocode", limiter, async (req, res) => {
     res.status(500).json({ error: "Error connecting to geocoding service" });
   }
 });
+
 
 // Prueba de conectividad a OpenStreetMap al iniciar
 (async () => {
