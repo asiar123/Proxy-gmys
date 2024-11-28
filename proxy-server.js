@@ -202,21 +202,29 @@ const port = process.env.PORT || 3000;
 // Prueba de conectividad a OpenStreetMap
 (async () => {
   try {
-    console.log("Realizando prueba de conectividad a OpenStreetMap...");
+    console.log("Realizando prueba de conexión a OpenStreetMap...");
     const response = await axios.get("https://nominatim.openstreetmap.org/reverse", {
-      params: {
-        format: "json",
-        lat: 4.79959,
-        lon: -75.744102,
-      },
+      params: { format: "json", lat: 4.79959, lon: -75.744102 },
       timeout: 5000, // Tiempo límite de espera
     });
-    console.log("Prueba exitosa. Respuesta de OpenStreetMap:", response.data);
+    console.log("Conexión exitosa. Respuesta de OpenStreetMap:", response.data);
   } catch (error) {
     console.error("Error al intentar conectar con OpenStreetMap:");
-    console.error("Detalles del error:", error.response?.data || error.message);
+    if (error.response) {
+      // Si el servidor responde con un código de error HTTP (como 403, 404, etc.)
+      console.error("Código de estado:", error.response.status);
+      console.error("Datos de respuesta:", error.response.data);
+    } else if (error.request) {
+      // Si la solicitud fue hecha pero no se recibió respuesta
+      console.error("No se recibió respuesta del servidor:");
+      console.error("Detalles de la solicitud:", error.request);
+    } else {
+      // Errores en la configuración de la solicitud
+      console.error("Error al configurar la solicitud:", error.message);
+    }
   }
 })();
+
 
 app.listen(port, () => {
   console.log(`Servidor proxy escuchando en el puerto ${port}`);
