@@ -17,7 +17,7 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const limiter = rateLimit({
   windowMs: 60 * 1000, // 1 minuto
-  max: 100, // 100 solicitudes por minuto por IP
+  max: 500, // 100 solicitudes por minuto por IP
   message: { error: "Too many requests, please slow down." },
   keyGenerator: (req) => req.ip, // Genera claves basadas en la IP del cliente
 });
@@ -171,6 +171,26 @@ app.get("/consumo_vehiculo", async (req, res, next) => {
     next(error);
   }
 });
+
+//like you tell me " before the making geocoding " I think that you telling me to this part equally confirm
+app.post("/optimize-reports", (req, res) => {
+  const reports = req.body; // Array of reports with { lat, lon, speed }
+
+  const uniqueReports = [];
+  const seenCoordinates = new Set();
+
+  for (const report of reports) {
+    const key = `${report.lat},${report.lon}`;
+
+    if (!seenCoordinates.has(key) || report.speed > 0) {
+      seenCoordinates.add(key);
+      uniqueReports.push(report);
+    }
+  }
+
+  res.json(uniqueReports);
+});
+
 
 // Geocoding route
 app.get("/reverse-geocode", limiter, async (req, res) => {
