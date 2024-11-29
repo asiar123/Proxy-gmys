@@ -104,14 +104,23 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
       { httpsAgent: agent }
     );
 
-    // Filter redundant reports
     const rawData = response.data; // Assuming response.data is an array of reports
-    const filteredData = rawData.filter((report, index, arr) => {
-      if (index === 0) return true; // Always keep the first report
-      const prevReport = arr[index - 1];
 
-      // Remove if speed = 0 and position is the same as the previous report
-      return !(report.speed === 0 && report.position === prevReport.position);
+    const filteredData = rawData.filter((report, index, arr) => {
+      if (index === 0 || index === 1) return true; // Always include the first and second reports
+      const prevReport = arr[index - 1];
+      const prevPrevReport = arr[index - 2];
+
+      // Exclude if speed = 0 and position is the same as the previous two reports
+      if (
+        report.speed === 0 &&
+        report.position === prevReport.position &&
+        report.position === prevPrevReport.position
+      ) {
+        return false;
+      }
+
+      return true; // Include other reports
     });
 
     res.json(filteredData);
@@ -119,6 +128,7 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
     next(error);
   }
 });
+
 
 
 // Eventos por Placa
