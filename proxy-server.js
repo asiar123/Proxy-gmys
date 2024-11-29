@@ -14,7 +14,6 @@ const addressCache = new NodeCache({ stdTTL: 86400 * 7 }); // Caché válido por
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-
 const limiter = rateLimit({
   windowMs: 60 * 1000, // 1 minuto
   max: 500, // 100 solicitudes por minuto por IP
@@ -22,9 +21,7 @@ const limiter = rateLimit({
   keyGenerator: (req) => req.ip, // Genera claves basadas en la IP del cliente
 });
 
-
 app.use(limiter); // Apply the limiter globally
-
 
 // HTTPS agent for secure connections
 const agent = new https.Agent({
@@ -47,7 +44,6 @@ app.use((err, req, res, next) => {
   console.error("Unhandled error:", err.stack);
   res.status(500).json({ error: "Internal Server Error" });
 });
-
 
 // ===================================
 // ROUTES
@@ -104,37 +100,37 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
       { httpsAgent: agent }
     );
 
-    const rawData = response.data; // Assuming response.data is an array of reports
-
+    const rawData = response.data; // Assume response.data is an array of reports
     const filteredData = [];
-    let lastIncludedReport = null;
 
-    for (const report of rawData) {
+    rawData.forEach((report, index) => {
+      const previousReport = filteredData[filteredData.length - 1];
+
       // Always include the first report
-      if (!lastIncludedReport) {
+      if (index === 0) {
         filteredData.push(report);
-        lastIncludedReport = report;
-        continue;
+        return;
       }
 
-      // Include report if position or speed changes
+      // Include the report if:
+      // 1. Position changes OR
+      // 2. Speed changes OR
+      // 3. Speed > 0 (vehicle is moving)
       if (
-        report.position !== lastIncludedReport.position ||
-        report.speed !== lastIncludedReport.speed
+        report.position !== previousReport.position ||
+        report.speed !== previousReport.speed ||
+        report.speed > 0
       ) {
         filteredData.push(report);
-        lastIncludedReport = report;
       }
-    }
+    });
 
     res.json(filteredData);
   } catch (error) {
+    console.error("Error en vehiculo_recorrido:", error.message);
     next(error);
   }
 });
-
-
-
 
 // Eventos por Placa
 app.get("/eventos_placa", async (req, res, next) => {
@@ -250,8 +246,6 @@ app.post("/batch-geocode", async (req, res) => {
   res.json(results); // Return all results in a single response
 });
 
-
-
 // Geocoding route
 app.get("/reverse-geocode", limiter, async (req, res) => {
   const { lat, lon } = req.query;
@@ -294,7 +288,6 @@ app.get("/reverse-geocode", limiter, async (req, res) => {
   }
 });
 
-
 // Prueba de conectividad a OpenStreetMap al iniciar
 (async () => {
   try {
@@ -318,9 +311,6 @@ app.get("/reverse-geocode", limiter, async (req, res) => {
     }
   }
 })();
-
-
-
 
 // ===================================
 // SERVER START
@@ -352,7 +342,6 @@ const port = process.env.PORT || 3000;
     }
   }
 })();
-
 
 app.listen(port, () => {
   console.log(`Servidor proxy escuchando en el puerto ${port}`);
