@@ -191,6 +191,51 @@ app.post("/optimize-reports", (req, res) => {
   res.json(uniqueReports);
 });
 
+//I add the part of batch in this aprt after the optimize-reports
+// Optimize address fetching by batching duplicate coordinates
+app.post("/batch-geocode", async (req, res) => {
+  const { locations } = req.body; // Receive an array of { lat, lon }
+
+  if (!locations || !Array.isArray(locations)) {
+    return res.status(400).json({ error: "Invalid locations format." });
+  }
+
+  const uniqueLocations = [...new Set(locations.map(({ lat, lon }) => `${lat},${lon}`))];
+  const results = {};
+
+  for (const loc of uniqueLocations) {
+    const [lat, lon] = loc.split(",");
+    const cacheKey = `${lat},${lon}`;
+
+    // Check cache first
+    if (addressCache.has(cacheKey)) {
+      results[cacheKey] = addressCache.get(cacheKey);
+      continue;
+    }
+
+    try {
+      console.log(`Fetching address for lat=${lat}, lon=${lon}`);
+      await delay(1000); // Throttle requests to avoid rate limits
+      const response = await axios.get("https://nominatim.openstreetmap.org/reverse", {
+        params: { format: "json", lat, lon },
+        timeout: 5000,
+        headers: { "User-Agent": "Your-App-Name" }, // Identify your application
+        httpsAgent: agent,
+      });
+
+      const address = response.data.display_name || "Dirección no disponible";
+      addressCache.set(cacheKey, address); // Cache the response
+      results[cacheKey] = address;
+    } catch (error) {
+      console.error("Error fetching address for:", cacheKey, error.message);
+      results[cacheKey] = "Error fetching address";
+    }
+  }
+
+  res.json(results); // Return all results in a single response
+});
+
+
 
 // Geocoding route
 app.get("/reverse-geocode", limiter, async (req, res) => {
