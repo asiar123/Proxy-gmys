@@ -106,28 +106,33 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
 
     const rawData = response.data; // Assuming response.data is an array of reports
 
-    const filteredData = rawData.filter((report, index, arr) => {
-      if (index === 0 || index === 1) return true; // Always include the first and second reports
-      const prevReport = arr[index - 1];
-      const prevPrevReport = arr[index - 2];
+    const filteredData = [];
+    let lastIncludedReport = null;
 
-      // Exclude if speed = 0 and position is the same as the previous two reports
-      if (
-        report.speed === 0 &&
-        report.position === prevReport.position &&
-        report.position === prevPrevReport.position
-      ) {
-        return false;
+    for (const report of rawData) {
+      // Always include the first report
+      if (!lastIncludedReport) {
+        filteredData.push(report);
+        lastIncludedReport = report;
+        continue;
       }
 
-      return true; // Include other reports
-    });
+      // Include report if position or speed changes
+      if (
+        report.position !== lastIncludedReport.position ||
+        report.speed !== lastIncludedReport.speed
+      ) {
+        filteredData.push(report);
+        lastIncludedReport = report;
+      }
+    }
 
     res.json(filteredData);
   } catch (error) {
     next(error);
   }
 });
+
 
 
 
