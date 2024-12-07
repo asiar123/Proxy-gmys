@@ -98,14 +98,17 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
 
     console.log("Datos originales del recorrido recibidos:", vehi_id, fecha_i, fecha_f);
 
-    // Ajustar fechas a la zona horaria de Colombia
-    const nowInColombia = moment().tz("America/Bogota"); // Hora actual en Colombia
-    fecha_i = fecha_i || nowInColombia.clone().startOf("day").format("YYYY-MM-DD"); // Inicio del día en Colombia
-    fecha_f = fecha_f || nowInColombia.clone().endOf("day").format("YYYY-MM-DD");   // Fin del día en Colombia
+    // Transformar las fechas a la zona horaria de Colombia (UTC-5)
+    const nowUTC = moment.utc(); // Hora actual en UTC
+    const nowInColombia = nowUTC.tz("America/Bogota"); // Ajustar a Colombia
 
-    console.log("Fechas ajustadas a Colombia:", fecha_i, fecha_f);
+    // Si no se reciben fechas, usamos el inicio y fin del día en Colombia
+    fecha_i = fecha_i || nowInColombia.clone().startOf("day").format("YYYY-MM-DD");
+    fecha_f = fecha_f || nowInColombia.clone().endOf("day").format("YYYY-MM-DD");
 
-    // Realizar la solicitud al backend
+    console.log("Fechas ajustadas en el proxy:", fecha_i, fecha_f);
+
+    // Realizar la solicitud al backend con las fechas ajustadas
     const response = await axios.get(
       `${API_BASE_URL}/vehiculo_recorrido?vehi_id=${vehi_id}&fecha_i=${fecha_i}&fecha_f=${fecha_f}`,
       { httpsAgent: agent }
@@ -128,9 +131,6 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
     next(error);
   }
 });
-
-
-
 
 
 // Eventos por Placa
