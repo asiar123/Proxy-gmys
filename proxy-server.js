@@ -113,13 +113,13 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
     console.log("Inicio del día en Colombia:", startOfDay.toISOString());
     console.log("Fin del día en Colombia:", endOfDay.toISOString());
 
-    // Formatear fechas a YYYY-MM-DD
-    fecha_i = fecha_i || startOfDay.toISOString().split("T")[0];
-    fecha_f = fecha_f || endOfDay.toISOString().split("T")[0];
+    // Sobrescribir fechas manualmente si no están ajustadas correctamente
+    fecha_i = startOfDay.toISOString().split("T")[0];
+    fecha_f = endOfDay.toISOString().split("T")[0];
 
     console.log("Fechas ajustadas manualmente:", fecha_i, fecha_f);
 
-    // Realizar la solicitud al backend
+    // Realizar la solicitud al backend con las fechas ajustadas
     const response = await axios.get(
       `${API_BASE_URL}/vehiculo_recorrido?vehi_id=${vehi_id}&fecha_i=${fecha_i}&fecha_f=${fecha_f}`,
       { httpsAgent: agent }
@@ -142,6 +142,7 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
     next(error);
   }
 });
+
 
 
 // Eventos por Placa
