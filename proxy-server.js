@@ -91,29 +91,56 @@ app.get("/vehiculos_user", async (req, res, next) => {
 
 app.get("/vehiculo_recorrido", async (req, res, next) => {
   try {
-    const { vehi_id, fecha_i, fecha_f } = req.query;
-    console.log("Datos del recorrido recibidos:", vehi_id, fecha_i, fecha_f);
+    let { vehi_id, fecha_i, fecha_f } = req.query;
 
+    console.log("Datos originales del recorrido recibidos:", vehi_id, fecha_i, fecha_f);
+
+    // Fecha actual en UTC
+    const now = new Date();
+    console.log("Fecha y hora actual en UTC:", now.toISOString());
+
+    // Ajuste manual: restar 5 horas para calcular la fecha en UTC-5
+    const nowInColombia = new Date(now.getTime() - 5 * 60 * 60 * 1000);
+    console.log("Fecha y hora ajustada a Colombia (UTC-5):", nowInColombia.toISOString());
+
+    // Calcular inicio y fin del día en Colombia
+    const startOfDay = new Date(nowInColombia);
+    startOfDay.setHours(0, 0, 0, 0); // Inicio del día (00:00:00)
+
+    const endOfDay = new Date(nowInColombia);
+    endOfDay.setHours(23, 59, 59, 999); // Fin del día (23:59:59)
+
+    console.log("Inicio del día en Colombia:", startOfDay.toISOString());
+    console.log("Fin del día en Colombia:", endOfDay.toISOString());
+
+    // Sobrescribir fechas manualmente si no están ajustadas correctamente
+    fecha_i = startOfDay.toISOString().split("T")[0];
+    fecha_f = endOfDay.toISOString().split("T")[0];
+
+    console.log("Fechas ajustadas manualmente:", fecha_i, fecha_f);
+
+    // Realizar la solicitud al backend con las fechas ajustadas
     const response = await axios.get(
       `${API_BASE_URL}/vehiculo_recorrido?vehi_id=${vehi_id}&fecha_i=${fecha_i}&fecha_f=${fecha_f}`,
       { httpsAgent: agent }
     );
 
-    // Verificar si la respuesta es válida
     const rawData = response.data;
-    console.log("Respuesta del backend:", rawData);
 
+    // Validar si la respuesta es un array
     if (!Array.isArray(rawData)) {
-      console.error("Error: rawData no es un array.", rawData);
-      res.status(500).json({ error: "Formato de datos inesperado del backend" });
-      return;
+      console.error("Respuesta inesperada del backend:", rawData);
+      return res.status(500).json({
+        error: "El backend devolvió una respuesta no válida",
+        data: rawData,
+      });
     }
 
+    // Filtrar reportes consecutivos con velocidad 0 y posiciones similares
     const filteredData = [];
     let lastPosition = null;
 
     rawData.forEach((report, index) => {
-      const previousReport = filteredData[filteredData.length - 1];
       const currentPosition = report.position ? report.position.split(",").map(Number) : null;
 
       // Siempre incluir el primer reporte
@@ -123,7 +150,7 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
         return;
       }
 
-      // Validación para velocidad 0 y posiciones cercanas
+      // Validar si el reporte tiene velocidad 0 y está muy cerca del último
       if (report.speed === 0) {
         if (
           lastPosition &&
@@ -131,30 +158,23 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
           Math.abs(lastPosition[0] - currentPosition[0]) < 0.0001 &&
           Math.abs(lastPosition[1] - currentPosition[1]) < 0.0001
         ) {
-          return; // Ignorar puntos con velocidad 0 si la posición es muy cercana
+          return; // Ignorar reportes redundantes con velocidad 0 y posiciones cercanas
         }
       }
 
-      // Incluir el reporte si:
-      // 1. Posición cambia OR
-      // 2. Velocidad cambia OR
-      // 3. Velocidad > 0
-      if (
-        report.position !== previousReport.position ||
-        report.speed !== previousReport.speed ||
-        report.speed > 0
-      ) {
-        filteredData.push(report);
-        lastPosition = currentPosition; // Actualizar última posición procesada
-      }
+      // Incluir el reporte si pasó todas las validaciones
+      filteredData.push(report);
+      lastPosition = currentPosition; // Actualizar la última posición procesada
     });
 
+    console.log("Datos filtrados enviados:", filteredData.length);
     res.json(filteredData);
   } catch (error) {
     console.error("Error en vehiculo_recorrido:", error.message, error.response?.data || error);
     next(error);
   }
 });
+
 
 
 
