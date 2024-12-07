@@ -99,7 +99,16 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
       { httpsAgent: agent }
     );
 
-    const rawData = response.data; // Assume response.data is an array of reports
+    // Verificar si la respuesta es válida
+    const rawData = response.data;
+    console.log("Respuesta del backend:", rawData);
+
+    if (!Array.isArray(rawData)) {
+      console.error("Error: rawData no es un array.", rawData);
+      res.status(500).json({ error: "Formato de datos inesperado del backend" });
+      return;
+    }
+
     const filteredData = [];
     let lastPosition = null;
 
@@ -142,10 +151,11 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
 
     res.json(filteredData);
   } catch (error) {
-    console.error("Error en vehiculo_recorrido:", error.message);
+    console.error("Error en vehiculo_recorrido:", error.message, error.response?.data || error);
     next(error);
   }
 });
+
 
 
 
