@@ -97,22 +97,29 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
 
     // Fecha actual en UTC
     const now = new Date();
+    console.log("Fecha y hora actual en UTC:", now.toISOString());
+
+    // Ajuste manual: restar 5 horas para calcular la fecha en UTC-5
     const nowInColombia = new Date(now.getTime() - 5 * 60 * 60 * 1000);
+    console.log("Fecha y hora ajustada a Colombia (UTC-5):", nowInColombia.toISOString());
 
     // Calcular inicio y fin del día en Colombia
     const startOfDay = new Date(nowInColombia);
-    startOfDay.setHours(0, 0, 0, 0);
+    startOfDay.setHours(0, 0, 0, 0); // Inicio del día (00:00:00)
 
     const endOfDay = new Date(nowInColombia);
-    endOfDay.setHours(23, 59, 59, 999);
+    endOfDay.setHours(23, 59, 59, 999); // Fin del día (23:59:59)
 
-    // Ajustar fechas
-    fecha_i = fecha_i || startOfDay.toISOString().split("T")[0];
-    fecha_f = fecha_f || endOfDay.toISOString().split("T")[0];
+    console.log("Inicio del día en Colombia:", startOfDay.toISOString());
+    console.log("Fin del día en Colombia:", endOfDay.toISOString());
+
+    // Sobrescribir fechas manualmente si no están ajustadas correctamente
+    fecha_i = startOfDay.toISOString().split("T")[0];
+    fecha_f = endOfDay.toISOString().split("T")[0];
 
     console.log("Fechas ajustadas manualmente:", fecha_i, fecha_f);
 
-    // Realizar la solicitud al backend
+    // Realizar la solicitud al backend con las fechas ajustadas
     const response = await axios.get(
       `${API_BASE_URL}/vehiculo_recorrido?vehi_id=${vehi_id}&fecha_i=${fecha_i}&fecha_f=${fecha_f}`,
       { httpsAgent: agent }
@@ -129,53 +136,12 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
       });
     }
 
-    // Filtrar datos: identificar estados estacionarios
-    const STOPPED_THRESHOLD = 1; // Velocidad para "estacionado" (km/h)
-    const PARKED_DURATION = 2 * 60 * 60 * 1000; // 2 horas en milisegundos
-    const filteredData = [];
-    let parkedStart = null;
-
-    rawData.forEach((report, index) => {
-      const { speed, timestamp, lat, lon } = report;
-      const currentTimestamp = new Date(timestamp).getTime();
-
-      if (speed <= STOPPED_THRESHOLD) {
-        // Si está estacionado
-        if (!parkedStart) {
-          parkedStart = { ...report, startTime: currentTimestamp };
-        }
-      } else {
-        // Si comienza a moverse, registrar el estacionamiento si duró suficiente tiempo
-        if (parkedStart) {
-          const parkedDuration = currentTimestamp - parkedStart.startTime;
-          if (parkedDuration >= PARKED_DURATION) {
-            filteredData.push(parkedStart);
-            console.log(`Vehículo estacionado durante: ${parkedDuration / 3600000} horas`);
-          }
-          parkedStart = null; // Reiniciar el estado de estacionado
-        }
-        filteredData.push(report); // Incluir reporte en movimiento
-      }
-    });
-
-    // Verificar si el vehículo estaba estacionado al final
-    if (parkedStart) {
-      const lastTimestamp = new Date(rawData[rawData.length - 1].timestamp).getTime();
-      const parkedDuration = lastTimestamp - parkedStart.startTime;
-      if (parkedDuration >= PARKED_DURATION) {
-        filteredData.push(parkedStart);
-        console.log(`Vehículo estacionado durante: ${parkedDuration / 3600000} horas`);
-      }
-    }
-
-    console.log(`Total de reportes procesados: ${filteredData.length}`);
-    res.json(filteredData); // Devolver los datos filtrados
+    res.json(rawData);
   } catch (error) {
     console.error("Error en vehiculo_recorrido:", error.message);
     next(error);
   }
 });
-
 
 
 
