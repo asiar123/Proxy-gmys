@@ -111,60 +111,35 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
       });
     }
 
-    // Filtering logic: Only show the first report of stopped state and the next moving report
+    // Filtering logic: Only show the first report of stopped state and all moving reports
     const filteredData = [];
     const STOPPED_THRESHOLD = 1; // Speed threshold (km/h) for "stopped"
-    const DISTANCE_THRESHOLD = 50; // 50 meters minimum distance to consider movement
-    let lastValidPosition = null;
-    let isCurrentlyStopped = false;
-
-    const calculateDistance = ([lat1, lon1], [lat2, lon2]) => {
-      const R = 6371e3; // Earth's radius in meters
-      const toRadians = (deg) => (deg * Math.PI) / 180;
-      const dLat = toRadians(lat2 - lat1);
-      const dLon = toRadians(lon2 - lon1);
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(toRadians(lat1)) *
-          Math.cos(toRadians(lat2)) *
-          Math.sin(dLon / 2) *
-          Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c; // Distance in meters
-    };
+    let isCurrentlyStopped = false; // Track if the vehicle is stationary
 
     rawData.forEach((report) => {
-      const { lat, lon, speed } = report;
-      const currentPosition = [lat, lon];
+      const { speed } = report;
 
-      if (lastValidPosition) {
-        const distance = calculateDistance(lastValidPosition, currentPosition);
-
-        if (speed <= STOPPED_THRESHOLD && distance < DISTANCE_THRESHOLD) {
-          if (!isCurrentlyStopped) {
-            // Include only the first stationary point
-            filteredData.push(report);
-            isCurrentlyStopped = true;
-          }
-        } else {
-          // Moving or significant position change
+      if (speed <= STOPPED_THRESHOLD) {
+        // If vehicle is stopped
+        if (!isCurrentlyStopped) {
+          // Only include the first stopped report
           filteredData.push(report);
-          isCurrentlyStopped = false; // Reset stopped state
+          isCurrentlyStopped = true; // Mark as stationary
         }
       } else {
-        // Include the first point unconditionally
-        filteredData.push(report);
+        // If vehicle is moving
+        filteredData.push(report); // Include all moving points
+        isCurrentlyStopped = false; // Reset stopped state
       }
-
-      lastValidPosition = currentPosition;
     });
 
-    res.json(filteredData);
+    res.json(filteredData); // Return the filtered data
   } catch (error) {
     console.error("Error en vehiculo_recorrido:", error.message);
     next(error);
   }
 });
+
 
 
 
