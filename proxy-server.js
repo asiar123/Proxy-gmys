@@ -91,11 +91,35 @@ app.get("/vehiculos_user", async (req, res, next) => {
 
 app.get("/vehiculo_recorrido", async (req, res, next) => {
   try {
-    const { vehi_id, fecha_i, fecha_f } = req.query;
+    let { vehi_id, fecha_i, fecha_f } = req.query;
 
     console.log("Datos originales del recorrido recibidos:", vehi_id, fecha_i, fecha_f);
 
-    // Fetch raw route data from the backend
+    // Fecha actual en UTC
+    const now = new Date();
+    console.log("Fecha y hora actual en UTC:", now.toISOString());
+
+    // Ajuste manual: restar 5 horas para calcular la fecha en UTC-5
+    const nowInColombia = new Date(now.getTime() - 5 * 60 * 60 * 1000);
+    console.log("Fecha y hora ajustada a Colombia (UTC-5):", nowInColombia.toISOString());
+
+    // Calcular inicio y fin del día en Colombia
+    const startOfDay = new Date(nowInColombia);
+    startOfDay.setHours(0, 0, 0, 0); // Inicio del día (00:00:00)
+
+    const endOfDay = new Date(nowInColombia);
+    endOfDay.setHours(23, 59, 59, 999); // Fin del día (23:59:59)
+
+    console.log("Inicio del día en Colombia:", startOfDay.toISOString());
+    console.log("Fin del día en Colombia:", endOfDay.toISOString());
+
+    // Sobrescribir fechas manualmente si no están ajustadas correctamente
+    fecha_i = startOfDay.toISOString().split("T")[0];
+    fecha_f = endOfDay.toISOString().split("T")[0];
+
+    console.log("Fechas ajustadas manualmente:", fecha_i, fecha_f);
+
+    // Realizar la solicitud al backend con las fechas ajustadas
     const response = await axios.get(
       `${API_BASE_URL}/vehiculo_recorrido?vehi_id=${vehi_id}&fecha_i=${fecha_i}&fecha_f=${fecha_f}`,
       { httpsAgent: agent }
@@ -103,6 +127,7 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
 
     const rawData = response.data;
 
+    // Validar si la respuesta es un array
     if (!Array.isArray(rawData)) {
       console.error("Respuesta inesperada del backend:", rawData);
       return res.status(500).json({
@@ -111,42 +136,12 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
       });
     }
 
-    // Filtering logic: Only show the first report of stopped state and all moving reports
-    const filteredData = [];
-    const STOPPED_THRESHOLD = 1; // Speed threshold (km/h) for "stopped"
-    let isCurrentlyStopped = false; // Track if the vehicle is stationary
-    let lastPosition = null; // Track the last reported position
-
-    rawData.forEach((report) => {
-      const { speed, lat, lon } = report;
-      const currentPosition = `${lat},${lon}`;
-
-      if (speed <= STOPPED_THRESHOLD) {
-        // If vehicle is stopped
-        if (!isCurrentlyStopped || currentPosition !== lastPosition) {
-          // Only include the first stopped report or when the position changes
-          filteredData.push(report);
-          isCurrentlyStopped = true; // Mark as stationary
-          lastPosition = currentPosition; // Update the last position
-        }
-      } else {
-        // If vehicle is moving
-        filteredData.push(report); // Include all moving points
-        isCurrentlyStopped = false; // Reset stopped state
-        lastPosition = currentPosition; // Update the last position
-      }
-    });
-
-    res.json(filteredData); // Return the filtered data
+    res.json(rawData);
   } catch (error) {
     console.error("Error en vehiculo_recorrido:", error.message);
     next(error);
   }
 });
-
-
-
-
 
 
 
