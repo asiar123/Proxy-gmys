@@ -215,7 +215,6 @@ app.post("/optimize-reports", (req, res) => {
   res.json(uniqueReports);
 });
 
-//I add the part of batch in this aprt after the optimize-reports
 // Optimize address fetching by batching duplicate coordinates
 app.post("/batch-geocode", async (req, res) => {
   const { locations } = req.body; // Receive an array of { lat, lon }
