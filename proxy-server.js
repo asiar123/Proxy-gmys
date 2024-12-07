@@ -89,22 +89,23 @@ app.get("/vehiculos_user", async (req, res, next) => {
   }
 });
 
-// Vehículo Recorrido
 const moment = require("moment-timezone");
 
 // Vehículo Recorrido
 app.get("/vehiculo_recorrido", async (req, res, next) => {
   try {
     let { vehi_id, fecha_i, fecha_f } = req.query;
+
     console.log("Datos originales del recorrido recibidos:", vehi_id, fecha_i, fecha_f);
 
     // Ajustar fechas a la zona horaria de Colombia
-    const now = moment().tz("America/Bogota");
-    fecha_i = fecha_i || now.clone().startOf("day").format("YYYY-MM-DD");
-    fecha_f = fecha_f || now.clone().endOf("day").format("YYYY-MM-DD");
+    const nowInColombia = moment().tz("America/Bogota"); // Hora actual en Colombia
+    fecha_i = fecha_i || nowInColombia.clone().startOf("day").format("YYYY-MM-DD"); // Inicio del día en Colombia
+    fecha_f = fecha_f || nowInColombia.clone().endOf("day").format("YYYY-MM-DD");   // Fin del día en Colombia
 
     console.log("Fechas ajustadas a Colombia:", fecha_i, fecha_f);
 
+    // Realizar la solicitud al backend
     const response = await axios.get(
       `${API_BASE_URL}/vehiculo_recorrido?vehi_id=${vehi_id}&fecha_i=${fecha_i}&fecha_f=${fecha_f}`,
       { httpsAgent: agent }
@@ -127,6 +128,7 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
     next(error);
   }
 });
+
 
 
 
