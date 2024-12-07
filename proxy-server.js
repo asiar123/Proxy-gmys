@@ -93,26 +93,41 @@ app.get("/vehiculos_user", async (req, res, next) => {
 const moment = require("moment-timezone");
 
 // Vehículo Recorrido
+const moment = require("moment-timezone");
+
+// Vehículo Recorrido
 app.get("/vehiculo_recorrido", async (req, res, next) => {
   try {
     let { vehi_id, fecha_i, fecha_f } = req.query;
     console.log("Datos originales del recorrido recibidos:", vehi_id, fecha_i, fecha_f);
 
-    // Ajustar las fechas a la zona horaria de Colombia (UTC-5) si no están definidas
-    const now = moment().tz("America/Bogota");
-    fecha_i = fecha_i || now.format("YYYY-MM-DD");
-    fecha_f = fecha_f || now.format("YYYY-MM-DD");
+    // Ajustar fechas a la zona horaria de Colombia
+    const now = moment().tz("America/Bogota"); // Fecha actual en Colombia
+    fecha_i = fecha_i || now.clone().startOf("day").format("YYYY-MM-DD"); // Inicio del día actual
+    fecha_f = fecha_f || now.clone().endOf("day").format("YYYY-MM-DD");   // Fin del día actual
 
     console.log("Fechas ajustadas a Colombia:", fecha_i, fecha_f);
 
+    // Realizar la solicitud al backend
     const response = await axios.get(
       `${API_BASE_URL}/vehiculo_recorrido?vehi_id=${vehi_id}&fecha_i=${fecha_i}&fecha_f=${fecha_f}`,
       { httpsAgent: agent }
     );
 
-    const rawData = response.data; // Asume que response.data es un array
+    const rawData = response.data;
+
+    // Validar si la respuesta es un array
+    if (!Array.isArray(rawData)) {
+      console.error("Respuesta inesperada del backend:", rawData);
+      return res.status(500).json({
+        error: "El backend devolvió una respuesta no válida",
+        data: rawData,
+      });
+    }
+
     const filteredData = [];
 
+    // Filtrar los datos
     rawData.forEach((report, index) => {
       const previousReport = filteredData[filteredData.length - 1];
 
@@ -141,6 +156,7 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
     next(error);
   }
 });
+
 
 
 // Eventos por Placa
