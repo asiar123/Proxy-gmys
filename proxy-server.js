@@ -223,59 +223,76 @@ app.post("/batch-geocode", async (req, res) => {
   if (
     !locations ||
     !Array.isArray(locations) ||
-    !locations.every((loc) => typeof loc.lat === "number" && typeof loc.lon === "number")
+    !locations.every(
+      (loc) =>
+        typeof loc.lat === "number" &&
+        typeof loc.lon === "number" &&
+        loc.lat >= -90 &&
+        loc.lat <= 90 &&
+        loc.lon >= -180 &&
+        loc.lon <= 180
+    )
   ) {
-    return res.status(400).json({ error: "Invalid locations format. Each location must have numeric lat and lon." });
+    return res.status(400).json({
+      error: "Invalid locations format. Each location must have numeric lat and lon within valid geographic ranges.",
+    });
   }
 
   // Deduplicate and round coordinates to 5 decimal places
   const uniqueLocations = [
-    ...new Set(
-      locations.map(({ lat, lon }) => `${parseFloat(lat.toFixed(5))},${parseFloat(lon.toFixed(5))}`)
-    ),
+    ...new Map(
+      locations.map(({ lat, lon }) => [
+        `${Math.round(lat * 1e5) / 1e5},${Math.round(lon * 1e5) / 1e5}`,
+        { lat, lon },
+      ])
+    ).values(),
   ];
+
   const results = {};
 
-  for (const loc of uniqueLocations) {
-    const [lat, lon] = loc.split(",");
+  // Helper to fetch address with retry
+  const fetchAddressWithRetry = async (lat, lon, retries = 3) => {
     const cacheKey = `${lat},${lon}`;
-
-    // Check cache first
     if (addressCache.has(cacheKey)) {
       console.log(`Cache hit for: ${cacheKey}`);
-      results[cacheKey] = addressCache.get(cacheKey);
-      continue;
-    } else {
-      console.log(`Cache miss for: ${cacheKey}`);
+      return addressCache.get(cacheKey);
     }
 
-    // Fetch geocode for uncached locations
-    try {
-      console.log(`Fetching address for lat=${lat}, lon=${lon}`);
-      await delay(1000); // Throttle requests (required by Nominatim's usage policy)
-      const response = await axios.get("https://nominatim.openstreetmap.org/reverse", {
-        params: { format: "json", lat, lon },
-        timeout: 5000,
-        headers: { "User-Agent": "Your-App-Name" },
-        httpsAgent: agent,
-      });
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        console.log(`Fetching address for lat=${lat}, lon=${lon} (attempt ${attempt + 1})`);
+        const response = await axios.get("https://nominatim.openstreetmap.org/reverse", {
+          params: { format: "json", lat, lon },
+          timeout: 5000,
+          headers: { "User-Agent": "Your-App-Name" },
+          httpsAgent: agent,
+        });
 
-      const address = response.data.display_name || "Dirección no disponible";
-      addressCache.set(cacheKey, address); // Cache the response
-      results[cacheKey] = address;
-    } catch (error) {
-      console.error(`Error fetching address for ${cacheKey}:`, error.message);
-      if (error.response) {
-        console.error("Status code:", error.response.status);
-        console.error("Response data:", error.response.data);
+        const address = response.data.display_name || "Dirección no disponible";
+        addressCache.set(cacheKey, address); // Cache the response
+        return address;
+      } catch (error) {
+        console.error(`Error fetching address for ${cacheKey} (attempt ${attempt + 1}):`, error.message);
+        if (attempt === retries - 1) {
+          return "Error fetching address"; // Return fallback after max retries
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, attempt))); // Exponential backoff
       }
-      results[cacheKey] = "Error fetching address";
     }
-  }
+  };
+
+  // Fetch addresses for all unique locations
+  await Promise.all(
+    uniqueLocations.map(async ({ lat, lon }) => {
+      const cacheKey = `${lat},${lon}`;
+      results[cacheKey] = await fetchAddressWithRetry(lat, lon);
+    })
+  );
 
   console.log("Geocoding results:", results);
   res.json(results); // Return all results in a single response
 });
+
 
 
 // Geocoding route
