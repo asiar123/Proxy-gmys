@@ -90,32 +90,42 @@ app.get("/vehiculos_user", async (req, res, next) => {
 });
 
 // Vehículo Recorrido
+const moment = require("moment-timezone");
+
+// Vehículo Recorrido
 app.get("/vehiculo_recorrido", async (req, res, next) => {
   try {
-    const { vehi_id, fecha_i, fecha_f } = req.query;
-    console.log("Datos del recorrido recibidos:", vehi_id, fecha_i, fecha_f);
+    let { vehi_id, fecha_i, fecha_f } = req.query;
+    console.log("Datos originales del recorrido recibidos:", vehi_id, fecha_i, fecha_f);
+
+    // Ajustar las fechas a la zona horaria de Colombia (UTC-5) si no están definidas
+    const now = moment().tz("America/Bogota");
+    fecha_i = fecha_i || now.format("YYYY-MM-DD");
+    fecha_f = fecha_f || now.format("YYYY-MM-DD");
+
+    console.log("Fechas ajustadas a Colombia:", fecha_i, fecha_f);
 
     const response = await axios.get(
       `${API_BASE_URL}/vehiculo_recorrido?vehi_id=${vehi_id}&fecha_i=${fecha_i}&fecha_f=${fecha_f}`,
       { httpsAgent: agent }
     );
 
-    const rawData = response.data; // Assume response.data is an array of reports
+    const rawData = response.data; // Asume que response.data es un array
     const filteredData = [];
 
     rawData.forEach((report, index) => {
       const previousReport = filteredData[filteredData.length - 1];
 
-      // Always include the first report
+      // Siempre incluir el primer reporte
       if (index === 0) {
         filteredData.push(report);
         return;
       }
 
-      // Include the report if:
-      // 1. Position changes OR
-      // 2. Speed changes OR
-      // 3. Speed > 0 (vehicle is moving)
+      // Incluir el reporte si:
+      // 1. La posición cambia, O
+      // 2. La velocidad cambia, O
+      // 3. La velocidad es mayor a 0 (el vehículo se está moviendo)
       if (
         report.position !== previousReport.position ||
         report.speed !== previousReport.speed ||
@@ -131,6 +141,7 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
     next(error);
   }
 });
+
 
 // Eventos por Placa
 app.get("/eventos_placa", async (req, res, next) => {
