@@ -136,47 +136,12 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
       });
     }
 
-    // Filtrar reportes consecutivos con velocidad 0 y posiciones similares
-    const filteredData = [];
-    let lastPosition = null;
-
-    rawData.forEach((report, index) => {
-      const currentPosition = report.position ? report.position.split(",").map(Number) : null;
-
-      // Siempre incluir el primer reporte
-      if (index === 0) {
-        filteredData.push(report);
-        lastPosition = currentPosition;
-        return;
-      }
-
-      // Validar si el reporte tiene velocidad 0 y está muy cerca del último
-      if (report.speed === 0) {
-        if (
-          lastPosition &&
-          currentPosition &&
-          Math.abs(lastPosition[0] - currentPosition[0]) < 0.0001 &&
-          Math.abs(lastPosition[1] - currentPosition[1]) < 0.0001
-        ) {
-          return; // Ignorar reportes redundantes con velocidad 0 y posiciones cercanas
-        }
-      }
-
-      // Incluir el reporte si pasó todas las validaciones
-      filteredData.push(report);
-      lastPosition = currentPosition; // Actualizar la última posición procesada
-    });
-
-    console.log("Datos filtrados enviados:", filteredData.length);
-    res.json(filteredData);
+    res.json(rawData);
   } catch (error) {
-    console.error("Error en vehiculo_recorrido:", error.message, error.response?.data || error);
+    console.error("Error en vehiculo_recorrido:", error.message);
     next(error);
   }
 });
-
-
-
 
 
 
