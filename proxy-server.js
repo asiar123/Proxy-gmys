@@ -217,13 +217,23 @@ app.post("/optimize-reports", (req, res) => {
 
 // Optimize address fetching by batching duplicate coordinates
 app.post("/batch-geocode", async (req, res) => {
-  const { locations } = req.body; // Receive an array of { lat, lon }
+  const { locations } = req.body;
 
-  if (!locations || !Array.isArray(locations)) {
-    return res.status(400).json({ error: "Invalid locations format." });
+  // Validate input
+  if (
+    !locations ||
+    !Array.isArray(locations) ||
+    !locations.every((loc) => typeof loc.lat === "number" && typeof loc.lon === "number")
+  ) {
+    return res.status(400).json({ error: "Invalid locations format. Each location must have numeric lat and lon." });
   }
 
-  const uniqueLocations = [...new Set(locations.map(({ lat, lon }) => `${lat},${lon}`))];
+  // Deduplicate and round coordinates to 5 decimal places
+  const uniqueLocations = [
+    ...new Set(
+      locations.map(({ lat, lon }) => `${parseFloat(lat.toFixed(5))},${parseFloat(lon.toFixed(5))}`)
+    ),
+  ];
   const results = {};
 
   for (const loc of uniqueLocations) {
@@ -232,17 +242,21 @@ app.post("/batch-geocode", async (req, res) => {
 
     // Check cache first
     if (addressCache.has(cacheKey)) {
+      console.log(`Cache hit for: ${cacheKey}`);
       results[cacheKey] = addressCache.get(cacheKey);
       continue;
+    } else {
+      console.log(`Cache miss for: ${cacheKey}`);
     }
 
+    // Fetch geocode for uncached locations
     try {
       console.log(`Fetching address for lat=${lat}, lon=${lon}`);
-      await delay(1000); // Throttle requests to avoid rate limits
+      await delay(1000); // Throttle requests (required by Nominatim's usage policy)
       const response = await axios.get("https://nominatim.openstreetmap.org/reverse", {
         params: { format: "json", lat, lon },
         timeout: 5000,
-        headers: { "User-Agent": "Your-App-Name" }, // Identify your application
+        headers: { "User-Agent": "Your-App-Name" },
         httpsAgent: agent,
       });
 
@@ -250,13 +264,19 @@ app.post("/batch-geocode", async (req, res) => {
       addressCache.set(cacheKey, address); // Cache the response
       results[cacheKey] = address;
     } catch (error) {
-      console.error("Error fetching address for:", cacheKey, error.message);
+      console.error(`Error fetching address for ${cacheKey}:`, error.message);
+      if (error.response) {
+        console.error("Status code:", error.response.status);
+        console.error("Response data:", error.response.data);
+      }
       results[cacheKey] = "Error fetching address";
     }
   }
 
+  console.log("Geocoding results:", results);
   res.json(results); // Return all results in a single response
 });
+
 
 // Geocoding route
 app.get("/reverse-geocode", limiter, async (req, res) => {
