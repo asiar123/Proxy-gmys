@@ -95,9 +95,13 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
 
     console.log("Datos originales del recorrido recibidos:", vehi_id, fecha_i, fecha_f);
 
-    // Ajuste manual: Restar 5 horas para calcular la fecha en UTC-5
-    const now = new Date(); // Fecha actual en UTC
-    const nowInColombia = new Date(now.getTime() - 5 * 60 * 60 * 1000); // Ajustar a UTC-5
+    // Fecha actual en UTC
+    const now = new Date();
+    console.log("Fecha y hora actual en UTC:", now.toISOString());
+
+    // Ajuste manual: restar 5 horas para calcular la fecha en UTC-5
+    const nowInColombia = new Date(now.getTime() - 5 * 60 * 60 * 1000);
+    console.log("Fecha y hora ajustada a Colombia (UTC-5):", nowInColombia.toISOString());
 
     // Calcular inicio y fin del día en Colombia
     const startOfDay = new Date(nowInColombia);
@@ -105,6 +109,9 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
 
     const endOfDay = new Date(nowInColombia);
     endOfDay.setHours(23, 59, 59, 999); // Fin del día (23:59:59)
+
+    console.log("Inicio del día en Colombia:", startOfDay.toISOString());
+    console.log("Fin del día en Colombia:", endOfDay.toISOString());
 
     // Formatear fechas a YYYY-MM-DD
     fecha_i = fecha_i || startOfDay.toISOString().split("T")[0];
@@ -135,7 +142,6 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
     next(error);
   }
 });
-
 
 
 // Eventos por Placa
