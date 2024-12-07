@@ -99,13 +99,12 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
     console.log("Datos originales del recorrido recibidos:", vehi_id, fecha_i, fecha_f);
 
     // Ajustar fechas a la zona horaria de Colombia
-    const now = moment().tz("America/Bogota"); // Fecha actual en Colombia
-    fecha_i = fecha_i || now.clone().startOf("day").format("YYYY-MM-DD"); // Inicio del día actual
-    fecha_f = fecha_f || now.clone().endOf("day").format("YYYY-MM-DD");   // Fin del día actual
+    const now = moment().tz("America/Bogota");
+    fecha_i = fecha_i || now.clone().startOf("day").format("YYYY-MM-DD");
+    fecha_f = fecha_f || now.clone().endOf("day").format("YYYY-MM-DD");
 
     console.log("Fechas ajustadas a Colombia:", fecha_i, fecha_f);
 
-    // Realizar la solicitud al backend
     const response = await axios.get(
       `${API_BASE_URL}/vehiculo_recorrido?vehi_id=${vehi_id}&fecha_i=${fecha_i}&fecha_f=${fecha_f}`,
       { httpsAgent: agent }
@@ -122,37 +121,13 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
       });
     }
 
-    const filteredData = [];
-
-    // Filtrar los datos
-    rawData.forEach((report, index) => {
-      const previousReport = filteredData[filteredData.length - 1];
-
-      // Siempre incluir el primer reporte
-      if (index === 0) {
-        filteredData.push(report);
-        return;
-      }
-
-      // Incluir el reporte si:
-      // 1. La posición cambia, O
-      // 2. La velocidad cambia, O
-      // 3. La velocidad es mayor a 0 (el vehículo se está moviendo)
-      if (
-        report.position !== previousReport.position ||
-        report.speed !== previousReport.speed ||
-        report.speed > 0
-      ) {
-        filteredData.push(report);
-      }
-    });
-
-    res.json(filteredData);
+    res.json(rawData);
   } catch (error) {
     console.error("Error en vehiculo_recorrido:", error.message);
     next(error);
   }
 });
+
 
 
 
