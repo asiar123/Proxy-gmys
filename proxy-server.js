@@ -115,21 +115,25 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
     const filteredData = [];
     const STOPPED_THRESHOLD = 1; // Speed threshold (km/h) for "stopped"
     let isCurrentlyStopped = false; // Track if the vehicle is stationary
+    let lastPosition = null; // Track the last reported position
 
     rawData.forEach((report) => {
-      const { speed } = report;
+      const { speed, lat, lon } = report;
+      const currentPosition = `${lat},${lon}`;
 
       if (speed <= STOPPED_THRESHOLD) {
         // If vehicle is stopped
-        if (!isCurrentlyStopped) {
-          // Only include the first stopped report
+        if (!isCurrentlyStopped || currentPosition !== lastPosition) {
+          // Only include the first stopped report or when the position changes
           filteredData.push(report);
           isCurrentlyStopped = true; // Mark as stationary
+          lastPosition = currentPosition; // Update the last position
         }
       } else {
         // If vehicle is moving
         filteredData.push(report); // Include all moving points
         isCurrentlyStopped = false; // Reset stopped state
+        lastPosition = currentPosition; // Update the last position
       }
     });
 
@@ -139,6 +143,7 @@ app.get("/vehiculo_recorrido", async (req, res, next) => {
     next(error);
   }
 });
+
 
 
 
