@@ -93,9 +93,6 @@ app.get("/vehiculos_user", async (req, res, next) => {
 const moment = require("moment-timezone");
 
 // Vehículo Recorrido
-const moment = require("moment-timezone");
-
-// Vehículo Recorrido
 app.get("/vehiculo_recorrido", async (req, res, next) => {
   try {
     let { vehi_id, fecha_i, fecha_f } = req.query;
