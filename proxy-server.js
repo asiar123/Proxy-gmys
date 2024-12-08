@@ -30,7 +30,11 @@ const agent = new https.Agent({
 });
 
 // Enable CORS and JSON parsing
-app.use(cors());
+app.use(cors({
+  origin: "http://localhost:5173",
+  methods: ["GET", "POST"],
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.set('trust proxy', 1); // Enable trust for proxies
