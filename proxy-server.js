@@ -29,10 +29,10 @@ const agent = new https.Agent({
   secureProtocol: "TLSv1_2_method",
 });
 
-// Enable CORS and JSON parsing
 app.use(cors({
-  origin: "http://localhost:5173",
-  methods: ["GET", "POST"],
+  origin: ["http://localhost:5173"], // Permitir solicitudes desde este dominio
+  methods: ["GET", "POST"], // Métodos HTTP permitidos
+  allowedHeaders: ["Content-Type", "Authorization"], // Encabezados permitidos
 }));
 
 app.use(express.json());
