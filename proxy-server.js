@@ -29,27 +29,7 @@ const agent = new https.Agent({
   secureProtocol: "TLSv1_2_method",
 });
 
-app.use(cors({
-  origin: ["http://localhost:5173"],
-  methods: ["GET", "POST", "OPTIONS"], // Incluye OPTIONS
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
-
-
-// Middleware adicional para asegurar encabezados y manejar preflight requests
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "http://localhost:5173");
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204); // Responder rápidamente a solicitudes OPTIONS
-  }
-  next();
-});
-
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.set('trust proxy', 1); // Enable trust for proxies
