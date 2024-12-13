@@ -217,6 +217,9 @@ app.post("/optimize-reports", (req, res) => {
 
 //I add the part of batch in this aprt after the optimize-reports
 // Optimize address fetching by batching duplicate coordinates
+// Normalización de claves
+const normalizeKey = (lat, lon) => `${parseFloat(lat).toFixed(6)},${parseFloat(lon)}`;
+
 app.post("/batch-geocode", async (req, res) => {
   const { locations } = req.body; // Receive an array of { lat, lon }
 
@@ -224,26 +227,28 @@ app.post("/batch-geocode", async (req, res) => {
     return res.status(400).json({ error: "Invalid locations format." });
   }
 
-  const uniqueLocations = [...new Set(locations.map(({ lat, lon }) => `${lat},${lon}`))];
+  // Generar claves únicas con normalización
+  const uniqueLocations = [...new Set(locations.map(({ lat, lon }) => normalizeKey(lat, lon)))];
   const results = {};
 
   for (const loc of uniqueLocations) {
     const [lat, lon] = loc.split(",");
-    const cacheKey = `${lat},${lon}`;
+    const cacheKey = normalizeKey(lat, lon);
 
     // Check cache first
     if (addressCache.has(cacheKey)) {
       results[cacheKey] = addressCache.get(cacheKey);
+      console.log(`Cache hit: ${cacheKey} -> ${addressCache.get(cacheKey)}`);
       continue;
     }
 
     try {
-      console.log(`Fetching address for lat=${lat}, lon=${lon}`);
+      console.log(`Fetching address for normalized key=${cacheKey}`);
       await delay(1000); // Throttle requests to avoid rate limits
       const response = await axios.get("https://nominatim.openstreetmap.org/reverse", {
         params: { format: "json", lat, lon },
         timeout: 5000,
-        headers: { "User-Agent": "Your-App-Name" }, // Identify your application
+        headers: { "User-Agent": "Your-App-Name" },
         httpsAgent: agent,
       });
 
@@ -251,13 +256,15 @@ app.post("/batch-geocode", async (req, res) => {
       addressCache.set(cacheKey, address); // Cache the response
       results[cacheKey] = address;
     } catch (error) {
-      console.error("Error fetching address for:", cacheKey, error.message);
+      console.error(`Error fetching address for ${cacheKey}:`, error.message);
       results[cacheKey] = "Error fetching address";
     }
   }
 
+  console.log("Resultados enviados al cliente:", results);
   res.json(results); // Return all results in a single response
 });
+
 
 // Geocoding route
 app.get("/reverse-geocode", limiter, async (req, res) => {
