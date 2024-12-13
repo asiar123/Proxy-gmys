@@ -29,6 +29,7 @@ const agent = new https.Agent({
   secureProtocol: "TLSv1_2_method",
 });
 
+// Enable CORS and JSON parsing
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -214,7 +215,8 @@ app.post("/optimize-reports", (req, res) => {
   res.json(uniqueReports);
 });
 
-// Optimize address fetching by batching duplicate coordinates 12:26
+//I add the part of batch in this aprt after the optimize-reports
+// Optimize address fetching by batching duplicate coordinates
 app.post("/batch-geocode", async (req, res) => {
   const { locations } = req.body; // Receive an array of { lat, lon }
 
