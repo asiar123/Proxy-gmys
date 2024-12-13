@@ -30,10 +30,11 @@ const agent = new https.Agent({
 });
 
 app.use(cors({
-  origin: ["http://localhost:5173"], // Permitir solicitudes desde este dominio
-  methods: ["GET", "POST"], // Métodos HTTP permitidos
-  allowedHeaders: ["Content-Type", "Authorization"], // Encabezados permitidos
+  origin: ["http://localhost:5173"],
+  methods: ["GET", "POST", "OPTIONS"], // Incluye OPTIONS
+  allowedHeaders: ["Content-Type", "Authorization"],
 }));
+
 
 // Middleware adicional para asegurar encabezados y manejar preflight requests
 app.use((req, res, next) => {
